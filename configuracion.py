@@ -1,14 +1,15 @@
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
-from flask_jwt_extended import JWTManager
+import os
 
 app = Flask(__name__)
 
-# Configuración de la base de datos SQLite
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///heladeria.db"
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-app.config["JWT_SECRET_KEY"] = "supersecretkey"  # Cambiar en producción
+class Config:
+    SQLALCHEMY_DATABASE_URI = "sqlite:///database.db"  
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
 
-# Inicializar extensiones
+# Configuración de la base de datos
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
 db = SQLAlchemy(app)
-jwt = JWTManager(app)

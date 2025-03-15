@@ -1,34 +1,71 @@
-from flask import request, jsonify
-from flask_jwt_extended import create_access_token
-from configuracion import app, db
-from models import User
+from flask import Blueprint, jsonify, request
+from database import db
+from models import Producto
+from models import db
+from decorators import admin_required, employee_required, customer_required
 
-@app.route("/register", methods=["POST"])
-def register():
-    data = request.get_json()
-    username = data.get("username")
-    password = data.get("password")
+api_bp = Blueprint('api', __name__)
 
-    if User.query.filter_by(username=username).first():
-        return jsonify({"message": "Usuario ya existe"}), 400
+@api_bp.route('/productos', methods=['GET'])
+def get_productos():
+    productos = Producto.query.all()
+    return jsonify([{"id": p.id, "nombre": p.nombre, "precio": p.precio} for p in productos])
 
-    new_user = User(username=username)
-    new_user.set_password(password)
-    db.session.add(new_user)
-    db.session.commit()
 
-    return jsonify({"message": "Usuario registrado exitosamente"}), 201
+@api_bp.route('/productos/<int:id>', methods=['GET'])
+def get_producto(id):
+    producto = Producto.query.get(id)
+    if producto:
+        return jsonify({"id": producto.id, "nombre": producto.nombre, "precio": producto.precio})
+    return jsonify({"error": "Producto no encontrado"}), 404
 
-@app.route("/login", methods=["POST"])
-def login():
-    data = request.get_json()
-    username = data.get("username")
-    password = data.get("password")
+@api_bp.route('/productos/nombre/<string:nombre>', methods=['GET'])
+def get_producto_nombre(nombre):
+    producto = Producto.query.filter_by(nombre=nombre).first()
+    if producto:
+        return jsonify({"id": producto.id, "nombre": producto.nombre, "precio": producto.precio})
+    return jsonify({"error": "Producto no encontrado"}), 404
 
-    user = User.authenticate(username, password)
 
-    if not user:
-        return jsonify({"message": "Credenciales incorrectas"}), 401
+@api_bp.route('/productos/<int:id>/calorias', methods=['GET'])
+def get_calorias(id):
+    producto = Producto.query.get(id)
+    if producto:
+        return jsonify({"calorias": producto.calorias})
+    return jsonify({"error": "Producto no encontrado"}), 404
 
-    access_token = create_access_token(identity=username)
-    return jsonify({"access_token": access_token}), 200
+
+@api_bp.route('/productos/<int:id>/rentabilidad', methods=['GET'])
+def get_rentabilidad(id):
+    producto = Producto.query.get(id)
+    if producto:
+        return jsonify({"rentabilidad": producto.rentabilidad()})
+    return jsonify({"error": "Producto no encontrado"}), 404
+
+
+@api_bp.route('/productos/<int:id>/vender', methods=['POST'])
+def vender_producto(id):
+    producto = Producto.query.get(id)
+    if producto and producto.inventario > 0:
+        producto.inventario -= 1
+        db.session.commit()
+        return jsonify({"message": "Producto vendido con éxito", "inventario_restante": producto.inventario})
+    return jsonify({"error": "Producto no disponible"}), 400
+
+def get_all_products():
+    return jsonify({"message": "Lista de productos"}), 200
+
+@api_bp.route("/productos/<int:producto_id>", methods=["GET"])
+@customer_required
+def get_product(current_user, producto_id):
+    return jsonify({"message": f"Producto {producto_id}"}), 200
+
+@api_bp.route("/productos/<int:producto_id>/calorias", methods=["GET"])
+@customer_required
+def get_calories(current_user, producto_id):
+    return jsonify({"message": f"Calorías del producto {producto_id}"}), 200
+
+@api_bp.route("/productos/<int:producto_id>/rentabilidad", methods=["GET"])
+@admin_required
+def get_rentabilidad(current_user, producto_id):
+    return jsonify({"message": f"Rentabilidad del producto {producto_id}"}), 200
